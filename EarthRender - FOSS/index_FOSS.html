@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Realistic Earth</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #000; 
+        }
+        canvas { 
+            display: block; 
+        }
+        
+        #intro-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #000;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            opacity: 1;
+            transition: opacity 1.2s cubic-bezier(0.25, 0.1, 0.25, 1);
+            pointer-events: none;
+        }
+
+        #intro-overlay .credits {
+            font-size: 0.85rem;
+            font-weight: 400;
+            letter-spacing: 0.08em;
+            margin-bottom: 6px;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        #intro-overlay .disclaimer {
+            font-size: 0.6rem;
+            font-weight: 300;
+            letter-spacing: 0.04em;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.4);
+        }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="intro-overlay">
+        <div class="credits">Developed by Jurgen Schmidt | Cloud Data by EUMETSAT & Matt Eason</div>
+        <div class="disclaimer">Live cloud synchronization relies on external pipeline availability.</div>
+    </div>
+    <script type="module" src="./main_FOSS.js"></script>
+</body>
+</html>
