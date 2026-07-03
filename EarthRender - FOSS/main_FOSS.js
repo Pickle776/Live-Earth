@@ -1,3 +1,4 @@
+// main_FOSS.js
 import * as THREE from 'three';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -230,7 +231,10 @@ class FlareSystem {
         const A_vis = A_total - A_hidden;
         const areaFraction = A_vis / A_total;
 
-        const x_hidden = (4.0 * rS * Math.pow(Math.sin(theta / 2.0), 3.0)) / (3.0 * (theta - sinTheta));
+        let x_hidden = 0.0;
+        if (theta > 0.0001) {
+            x_hidden = (4.0 * rS * Math.pow(Math.sin(theta / 2.0), 3.0)) / (3.0 * (theta - sinTheta));
+        }
 
         const dirEx = dx / d;
         const dirEy = dy / d;
@@ -758,7 +762,7 @@ class EarthApp {
         .catch(err => console.warn('[Geolocation] Failed to fetch IP location, using default framing.', err));
     // ──────────────────────────────────────────────────────────────────────────
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'default' });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.toneMapping         = THREE.ACESFilmicToneMapping;
@@ -1193,49 +1197,24 @@ class EarthApp {
 
     this.renderer.autoClear = false;
 
-    this.idleTimer    = null;
-    this.idleInterval = null;
-    this.isIdle       = false;
-    this.rafHandle    = null;
+    this.lastRender = 0;
+    this.fpsInterval = 1000 / 2; // 2 FPS
 
-    this._lastPointerReset = 0;
-
-    document.addEventListener('pointermove', () => {
-        const now = Date.now();
-        if (now - this._lastPointerReset > 1000) {
-            this._lastPointerReset = now;
-            this.resetIdle();
+    this.animate = (now) => {
+        requestAnimationFrame(this.animate);
+        
+        if (!now) now = performance.now();
+        const elapsed = now - this.lastRender;
+        
+        if (elapsed > this.fpsInterval) {
+            this.lastRender = now - (elapsed % this.fpsInterval);
+            this.renderOnce();
         }
-    });
-
-    this.animate = () => {
-        if (this.isIdle) return;
-        this.rafHandle = requestAnimationFrame(this.animate);
-        this.renderOnce();
     };
 
     this.animate();
-    this.idleTimer = setTimeout(() => this.goIdle(), 5000);
 
     window.addEventListener('resize', () => this.onResize());
-  }
-
-  resetIdle() {
-    clearTimeout(this.idleTimer);
-    if (this.isIdle) {
-        clearInterval(this.idleInterval);
-        this.isIdle = false;
-        this.animate();
-    }
-    this.idleTimer = setTimeout(() => this.goIdle(), 5000);
-  }
-
-  goIdle() {
-    this.isIdle = true;
-    cancelAnimationFrame(this.rafHandle);
-    this.idleInterval = setInterval(() => {
-        this.renderOnce();
-    }, 60000);
   }
 
   renderOnce() {
