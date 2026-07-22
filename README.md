@@ -7,8 +7,11 @@ A real-time WebGL Earth wallpaper with live sun, moon, and planet positions, fea
 Since this wallpaper uses local textures and live data fetching, it needs to be run through a local web server or a wallpaper engine. The easiest method is using Lively:
 
 1. Download the ZIP of this repository and extract it to a permanent folder.
-2. Open Lively
-3. Drag and drop the index_FOSS.html file directly into a new wallpaper instance.
+2. Open Lively. (Download it first, its cool software)
+3. Drag and drop the index_FOSS.html file directly into Lively
+4. Select yes and type in whatever you want to call it.
+
+The wallpaper can be rotated by double clicking anywhere on the desktop and moving your mouse. No dragging required.
 
 ## Credits & Licensing
 
