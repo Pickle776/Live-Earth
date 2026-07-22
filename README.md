@@ -19,3 +19,5 @@ The wallpaper can be rotated by double clicking anywhere on the desktop and movi
 * **Live Cloud Data:** Raw satellite data provided by **EUMETSAT**, with image processing and hosting by **Matt Eason** (CC0 1.0).
 
 *Note: The live cloud synchronization relies on the availability of the external pipeline. If it goes down, the wallpaper will fall back to cached or default local cloud textures.*
+<img width="1853" height="899" alt="image" src="https://github.com/user-attachments/assets/00603925-648e-4cde-b51f-6b9e9d0346e4" />
+<img width="1745" height="842" alt="image" src="https://github.com/user-attachments/assets/a4d99210-974d-4104-b839-d4028ff812cd" />
