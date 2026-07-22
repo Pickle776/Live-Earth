@@ -735,10 +735,23 @@ class EarthApp {
         45, window.innerWidth / window.innerHeight, 0.1, 50000
     );
 
-    // ── Dynamic Framing via IP Geolocation ────────────────────────────────────
+    // ── Interaction Properties ────────────────────────────────────────────────
     const FRAMING_DISTANCE = 5.0;
+    
+    this.isInteractive = false;
+    this.isSettled = true;
+    
+    this.originalSpherical = new THREE.Spherical(FRAMING_DISTANCE, Math.PI / 2, 0);
+    this.currentSpherical = new THREE.Spherical(FRAMING_DISTANCE, Math.PI / 2, 0);
+    this.targetSpherical = new THREE.Spherical(FRAMING_DISTANCE, Math.PI / 2, 0);
+    // ──────────────────────────────────────────────────────────────────────────
+
+    // ── Dynamic Framing via IP Geolocation ────────────────────────────────────
     this.camera.position.set(0, 0, FRAMING_DISTANCE); // Fallback position
     this.camera.lookAt(0, 0, 0);
+    this.originalSpherical.setFromVector3(this.camera.position);
+    this.currentSpherical.copy(this.originalSpherical);
+    this.targetSpherical.copy(this.originalSpherical);
 
     fetch('https://get.geojs.io/v1/ip/geo.json')
         .then(res => res.json())
@@ -756,6 +769,10 @@ class EarthApp {
                 );
                 this.camera.position.copy(framingDir.multiplyScalar(FRAMING_DISTANCE));
                 this.camera.lookAt(0, 0, 0);
+                
+                this.originalSpherical.setFromVector3(this.camera.position);
+                this.currentSpherical.copy(this.originalSpherical);
+                this.targetSpherical.copy(this.originalSpherical);
                 this.renderOnce();
             }
         })
@@ -768,6 +785,49 @@ class EarthApp {
     this.renderer.toneMapping         = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.1;
     document.body.appendChild(this.renderer.domElement);
+
+    // ── Interaction Event Listeners ───────────────────────────────────────────
+    const dom = this.renderer.domElement;
+    dom.style.touchAction = 'none';
+
+    dom.addEventListener('dblclick', () => {
+        this.isInteractive = !this.isInteractive;
+        if (!this.isInteractive) {
+            this.isSettled = false;
+        }
+    });
+
+    dom.addEventListener('pointermove', (e) => {
+        if (!this.isInteractive) return;
+
+        this.targetSpherical.theta -= e.movementX * 0.005;
+        this.targetSpherical.phi -= e.movementY * 0.005;
+
+        // Clamp polar angle to avoid flipping over the poles (gimbal lock)
+        this.targetSpherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, this.targetSpherical.phi));
+    });
+
+    window.addEventListener('blur', () => {
+        if (this.isInteractive) {
+            this.isInteractive = false;
+            this.isSettled = false;
+        }
+    });
+    // ──────────────────────────────────────────────────────────────────────────
+
+    this.contextLost = false;
+
+    this.renderer.domElement.addEventListener('webglcontextlost', (event) => {
+        event.preventDefault();
+        this.contextLost = true;
+        console.log('[WebGL] Context lost. Pausing renderer.');
+    }, false);
+
+    this.renderer.domElement.addEventListener('webglcontextrestored', () => {
+        this.contextLost = false;
+        console.log('[WebGL] Context restored. Resuming renderer.');
+        this.renderOnce();
+    }, false);
 
     this.textureLoader = new THREE.TextureLoader();
     this.maxAnisotropy = this.renderer.capabilities.getMaxAnisotropy();
@@ -1198,16 +1258,69 @@ class EarthApp {
     this.renderer.autoClear = false;
 
     this.lastRender = 0;
-    this.fpsInterval = 1000 / 2; // 2 FPS
+    this.fpsInterval = 1000 / 2; // Default to 2 FPS when resting
 
     this.animate = (now) => {
         requestAnimationFrame(this.animate);
         
+        if (this.contextLost) return;
+        
         if (!now) now = performance.now();
+        
+        let needsContinuousRender = false;
+
+        if (this.isInteractive) {
+            let diffThetaInter = this.targetSpherical.theta - this.currentSpherical.theta;
+            while (diffThetaInter < -Math.PI) diffThetaInter += Math.PI * 2;
+            while (diffThetaInter > Math.PI) diffThetaInter -= Math.PI * 2;
+
+            this.currentSpherical.theta += diffThetaInter * 0.3;
+            this.currentSpherical.phi += (this.targetSpherical.phi - this.currentSpherical.phi) * 0.3;
+            needsContinuousRender = true;
+        } 
+        else if (!this.isSettled) {
+            this.targetSpherical.copy(this.originalSpherical);
+
+            let diffTheta = this.targetSpherical.theta - this.currentSpherical.theta;
+            while (diffTheta < -Math.PI) diffTheta += Math.PI * 2;
+            while (diffTheta > Math.PI) diffTheta -= Math.PI * 2;
+
+            let diffPhi = this.targetSpherical.phi - this.currentSpherical.phi;
+
+            let stepTheta = diffTheta * 0.08;
+            let stepPhi = diffPhi * 0.08;
+
+            const dist = Math.sqrt(diffTheta * diffTheta + diffPhi * diffPhi);
+            const currentSpeed = Math.sqrt(stepTheta * stepTheta + stepPhi * stepPhi);
+            const minSpeed = 0.001;
+
+            if (currentSpeed < minSpeed && dist > 0) {
+                const actualSpeed = Math.min(minSpeed, dist);
+                const scale = actualSpeed / dist;
+                stepTheta = diffTheta * scale;
+                stepPhi = diffPhi * scale;
+            }
+
+            this.currentSpherical.theta += stepTheta;
+            this.currentSpherical.phi += stepPhi;
+
+            if (dist < 0.001) {
+                this.currentSpherical.copy(this.originalSpherical);
+                this.isSettled = true;
+            }
+            needsContinuousRender = true;
+        }
+
+        if (needsContinuousRender) {
+            this.currentSpherical.makeSafe();
+            this.camera.position.setFromSpherical(this.currentSpherical);
+            this.camera.lookAt(0, 0, 0);
+        }
+
         const elapsed = now - this.lastRender;
         
-        if (elapsed > this.fpsInterval) {
-            this.lastRender = now - (elapsed % this.fpsInterval);
+        if (needsContinuousRender || elapsed > this.fpsInterval) {
+            this.lastRender = needsContinuousRender ? now : now - (elapsed % this.fpsInterval);
             this.renderOnce();
         }
     };
@@ -1307,7 +1420,7 @@ class EarthApp {
 const app = new EarthApp();
 
 // Fade out overlay smoothly after exactly 1.8 seconds (3 seconds total to clear DOM)
-window.addEventListener('load', () => {
+window.addEventListener('DOMContentLoaded', () => {
     const overlay = document.getElementById('intro-overlay');
     if (overlay) {
         setTimeout(() => {
