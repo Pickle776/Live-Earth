@@ -1,17 +1,18 @@
 # Realistic Earth Wallpaper
 
-A real-time WebGL Earth wallpaper with live sun, moon, and planet positions, featuring dynamic cloud data synchronized every few hours.
+A real-time WebGL Earth wallpaper with live sun, moon, and planet positions, featuring dynamic cloud data synchronized every few hours. The wallpaper can be rotated by double clicking anywhere on the desktop and moving your mouse. No dragging required.
 
 ## How to Install (Lively Wallpaper)
 
-Since this wallpaper uses local textures and live data fetching, it needs to be run through a local web server or a wallpaper engine. The easiest method is using Lively:
+Since this wallpaper uses local textures and live data fetching, it needs to be run through a local web server or a wallpaper engine. The easiest method is using **Lively**:
 
 1. Download the ZIP of this repository and extract it to a permanent folder.
 2. Open Lively. (Download it first, its cool software)
 3. Drag and drop the index_FOSS.html file directly into Lively
 4. Select yes and type in whatever you want to call it.
+5. Go to lively's global _Settings_ -> _Performance_. Scroll down to _System_ -> _Restart wallpaper when returning from lock screen_ and toggle on.
 
-The wallpaper can be rotated by double clicking anywhere on the desktop and moving your mouse. No dragging required.
+The setting mentioned in step 5 is not strictly necessary, but it prevents rare crashes (Lively's side, not limited to this specific wallpaper). 
 
 ## Credits & Licensing
 
