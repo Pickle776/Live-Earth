@@ -840,10 +840,10 @@ class EarthApp {
     };
 
     this.earthMap    = loadCrispTexture('earth.jpg', THREE.SRGBColorSpace);
-    this.bumpMap     = loadCrispTexture('bump_map.jpg');
-    this.specularMap = loadCrispTexture('specular.jpg');
-    this.nightMap    = loadCrispTexture('night_map.jpg');
-    this.cloudsMap   = loadCrispTexture('clouds.jpg'); // fallback — CloudManager takes over
+    this.bumpMap     = loadCrispTexture('bump_map.jpg', THREE.SRGBColorSpace);
+    this.specularMap = loadCrispTexture('specular.jpg', THREE.SRGBColorSpace);
+    this.nightMap    = loadCrispTexture('night_map.jpg', THREE.SRGBColorSpace);
+    this.cloudsMap   = loadCrispTexture('clouds.jpg', THREE.SRGBColorSpace); // fallback — CloudManager takes over
     this.cloudsMap.generateMipmaps = false;
     this.cloudsMap.minFilter = THREE.LinearFilter;
 
