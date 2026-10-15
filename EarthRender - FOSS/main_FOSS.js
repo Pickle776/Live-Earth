@@ -799,7 +799,9 @@ class EarthApp {
             const lon = parseFloat(data.longitude);
             
             if (!isNaN(lat) && !isNaN(lon)) {
-                const latRad = lat * Math.PI / 180;
+                // Bias latitude closer to the equator by 30% to avoid dominating polar cloud cover
+                const biasedLat = lat * 0.7;
+                const latRad = biasedLat * Math.PI / 180;
                 const lonRad = lon * Math.PI / 180;
                 const framingDir = new THREE.Vector3(
                     Math.cos(latRad) * Math.cos(lonRad),
