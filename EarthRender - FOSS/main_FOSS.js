@@ -308,6 +308,7 @@ class StarField {
         });
 
         this.points = null;
+        this._gmstRad = 0;
     }
 
     _bvToRGB(bv) {
@@ -357,10 +358,19 @@ class StarField {
             this.geometry.setAttribute('magnitude', new THREE.BufferAttribute(mags.subarray(0, valid), 1));
 
             const starPoints = new THREE.Points(this.geometry, this.material);
+            starPoints.rotation.order = 'XYZ';
             starPoints.rotation.x = -Math.PI / 2;
+            starPoints.rotation.y = -this._gmstRad;
             scene.add(starPoints);
             this.points = starPoints;
         });
+    }
+
+    updateGMST(gmstRad) {
+        this._gmstRad = gmstRad;
+        if (this.points) {
+            this.points.rotation.y = -gmstRad;
+        }
     }
 
     setExposure(value) {
@@ -426,12 +436,41 @@ class PlanetPositions {
         const geoY = helio.y - earth.y;
         const geoZ = helio.z - earth.z;
 
-        const eps = (23.43928 - 0.0130042 * T) * Math.PI / 180;
-        const cE = Math.cos(eps), sE = Math.sin(eps);
+        // 1. Convert J2000 helio-ecliptic to J2000 equatorial using J2000 obliquity
+        const eps0 = 23.43928 * Math.PI / 180;
+        const cE = Math.cos(eps0), sE = Math.sin(eps0);
 
-        const eqX = geoX;
-        const eqY = geoY * cE - geoZ * sE;
-        const eqZ = geoY * sE + geoZ * cE;
+        const eqX0 = geoX;
+        const eqY0 = geoY * cE - geoZ * sE;
+        const eqZ0 = geoY * sE + geoZ * cE;
+
+        // 2. IAU 1976 precession: J2000 equatorial -> Mean equatorial of date T
+        // P = R3(-z_A) * R2(theta_A) * R3(-zeta_A)
+        const radSec = Math.PI / (180 * 3600);
+        const zeta_A  = (2306.2181 * T + 0.30188 * T * T + 0.017998 * T * T * T) * radSec;
+        const z_A     = (2306.2181 * T + 1.09468 * T * T + 0.018203 * T * T * T) * radSec;
+        const theta_A = (2004.3109 * T - 0.42665 * T * T - 0.041833 * T * T * T) * radSec;
+
+        const cz = Math.cos(zeta_A), sz = Math.sin(zeta_A);
+        const ct = Math.cos(theta_A), st = Math.sin(theta_A);
+        const czA = Math.cos(z_A), szA = Math.sin(z_A);
+
+        // Precession matrix elements (Lieske et al. 1977)
+        const pxx =  cz * ct * czA - sz * szA;
+        const pxy = -sz * ct * czA - cz * szA;
+        const pxz = -st * czA;
+
+        const pyx =  cz * ct * szA + sz * czA;
+        const pyy = -sz * ct * szA + cz * czA;
+        const pyz = -st * szA;
+
+        const pzx =  cz * st;
+        const pzy = -sz * st;
+        const pzz =  ct;
+
+        const eqX = pxx * eqX0 + pxy * eqY0 + pxz * eqZ0;
+        const eqY = pyx * eqX0 + pyy * eqY0 + pyz * eqZ0;
+        const eqZ = pzx * eqX0 + pzy * eqY0 + pzz * eqZ0;
 
         let RA = Math.atan2(eqY, eqX);
         if (RA < 0) RA += 2 * Math.PI;
@@ -936,7 +975,6 @@ class EarthApp {
     this.planetMaterial.uniforms.uBaseBrightness.value = this.params.starBaseBrightness * this.params.planetBrightnessMultiplier;
 
     this.planetsMesh = new THREE.Points(this.planetGeo, this.planetMaterial);
-    this.planetsMesh.rotation.x = -Math.PI / 2;
     this.scene.add(this.planetsMesh);
 
     // ── Moon ───────────────────────────────────────────────────────────────────
@@ -1366,6 +1404,9 @@ class EarthApp {
     const d = jd - 2451545.0;
     const gmstDeg = (280.46061837 + 360.98564736629 * d) % 360;
     const gmstHours = gmstDeg / 15;
+
+    // Update star field rotation with GMST
+    this.starField.updateGMST(gmstDeg * Math.PI / 180);
 
     // Update planets with GMST
     this.planetPositions.update(T, gmstHours, this.planetPosArray);
