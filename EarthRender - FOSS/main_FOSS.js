@@ -785,39 +785,58 @@ class EarthApp {
     this.targetSpherical = new THREE.Spherical(FRAMING_DISTANCE, Math.PI / 2, 0);
     // ──────────────────────────────────────────────────────────────────────────
 
-    // ── Dynamic Framing via IP Geolocation ────────────────────────────────────
-    this.camera.position.set(0, 0, FRAMING_DISTANCE); // Fallback position
-    this.camera.lookAt(0, 0, 0);
-    this.originalSpherical.setFromVector3(this.camera.position);
-    this.currentSpherical.copy(this.originalSpherical);
-    this.targetSpherical.copy(this.originalSpherical);
+    // ── Dynamic Framing via IP Geolocation & System Timezone ─────────────────
+    const applyFraming = (lat, lon) => {
+        const biasedLat = lat * 0.7;
+        const latRad = biasedLat * Math.PI / 180;
+        const lonRad = lon * Math.PI / 180;
+        const framingDir = new THREE.Vector3(
+            Math.cos(latRad) * Math.cos(lonRad),
+            Math.sin(latRad),
+           -Math.cos(latRad) * Math.sin(lonRad)
+        );
+        this.camera.position.copy(framingDir.multiplyScalar(FRAMING_DISTANCE));
+        this.camera.lookAt(0, 0, 0);
 
-    fetch('https://get.geojs.io/v1/ip/geo.json')
-        .then(res => res.json())
-        .then(data => {
-            const lat = parseFloat(data.latitude);
-            const lon = parseFloat(data.longitude);
-            
-            if (!isNaN(lat) && !isNaN(lon)) {
-                // Bias latitude closer to the equator by 30% to avoid dominating polar cloud cover
-                const biasedLat = lat * 0.7;
-                const latRad = biasedLat * Math.PI / 180;
-                const lonRad = lon * Math.PI / 180;
-                const framingDir = new THREE.Vector3(
-                    Math.cos(latRad) * Math.cos(lonRad),
-                    Math.sin(latRad),
-                   -Math.cos(latRad) * Math.sin(lonRad)
-                );
-                this.camera.position.copy(framingDir.multiplyScalar(FRAMING_DISTANCE));
-                this.camera.lookAt(0, 0, 0);
-                
-                this.originalSpherical.setFromVector3(this.camera.position);
-                this.currentSpherical.copy(this.originalSpherical);
-                this.targetSpherical.copy(this.originalSpherical);
-                this.renderOnce();
-            }
-        })
-        .catch(err => console.warn('[Geolocation] Failed to fetch IP location, using default framing.', err));
+        this.originalSpherical.setFromVector3(this.camera.position);
+        if (!this.isInteractive) {
+            this.currentSpherical.copy(this.originalSpherical);
+            this.targetSpherical.copy(this.originalSpherical);
+        }
+        if (typeof this.renderOnce === 'function' && this.renderer) {
+            this.renderOnce();
+        }
+    };
+
+    // 1. Instant offline fallback from system clock (e.g. UTC+2 -> 30°E longitude)
+    const tzOffsetMinutes = new Date().getTimezoneOffset();
+    const fallbackLon = isNaN(tzOffsetMinutes) ? 0 : -tzOffsetMinutes / 4;
+    applyFraming(0, fallbackLon);
+
+    // 2. Fetch exact IP location; retry automatically when Wi-Fi connects
+    let geoResolved = false;
+    const fetchLocation = () => {
+        if (geoResolved) return;
+        fetch('https://get.geojs.io/v1/ip/geo.json')
+            .then(res => res.json())
+            .then(data => {
+                const lat = parseFloat(data.latitude);
+                const lon = parseFloat(data.longitude);
+                if (!isNaN(lat) && !isNaN(lon)) {
+                    geoResolved = true;
+                    window.removeEventListener('online', fetchLocation);
+                    applyFraming(lat, lon);
+                }
+            })
+            .catch(() => {
+                if (!geoResolved) {
+                    setTimeout(fetchLocation, 5000);
+                }
+            });
+    };
+
+    window.addEventListener('online', fetchLocation);
+    fetchLocation();
     // ──────────────────────────────────────────────────────────────────────────
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'default' });
